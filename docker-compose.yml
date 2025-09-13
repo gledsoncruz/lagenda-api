@@ -1,0 +1,60 @@
+version: '3.8'
+
+#networks:
+#  app-network:
+#    driver: bridge
+services:
+  # Banco de dados PostgreSQL
+#  postgres-db:
+#    image: postgres:15
+#    container_name: lagenda-postgres
+#    environment:
+#      POSTGRES_DB: lagenda
+#      POSTGRES_USER: lagenda_user
+#      POSTGRES_PASSWORD: lagenda_password_segura
+#    ports:
+#      - "5432:5432"
+#    volumes:
+#      - postgres_data:/var/lib/postgresql/data
+#      - ./init.sql:/docker-entrypoint-initdb.d/init.sql  # opcional: scripts iniciais
+#    restart: unless-stopped
+#    healthcheck:
+#      test: [ "CMD-SHELL", "pg_isready -U lagenda_user -d lagenda" ]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+
+  lagenda-app:
+    build: .
+    container_name: lagenda-app
+#    depends_on:
+#      postgres-db:
+#        condition: service_healthy  # espera o banco estar pronto
+    ports:
+      - "8080:8080"
+      - "5005:5005"
+    environment:
+      # 🔥 Substitua com suas credenciais do Supabase
+      SPRING_DATASOURCE_URL: ${DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASS}
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+    restart: unless-stopped
+
+#volumes:
+#  postgres_data:
+#    networks:
+#      - app-network
+
+#  nginx:
+#    build: ./nginx
+#    container_name: nginx-proxy
+#    ports:
+#      - "80:80"
+#      #- "443:443"  # futuramente para HTTPS
+#    depends_on:
+#      - lagenda-app
+#    restart: unless-stopped
+#    networks:
+#      - app-network
+
