@@ -117,21 +117,6 @@ public class AppointmentController {
 
     }
 
-    @PutMapping("/change-appointment")
-    public ResponseEntity<?> changeStatus(@RequestBody AppointmentChangeRequest request) {
-        Appointment appointment = appointmentService.findById(request.appointmentId());
-        appointment.setStart(request.start());
-        appointment.setEnd(request.start().plusHours(1));
-
-        appointmentService.save(appointment);
-
-        return  ResponseEntity.status(HttpStatus.OK)
-                .body(Map.of(
-                        "message", "Agendamento alterado com sucesso."
-                ));
-
-    }
-
     @GetMapping("/checkAvailability")
     public ResponseEntity<?> checkAvailability(@RequestBody @Valid AppointmentRequest request) {
         String providerId = "";
