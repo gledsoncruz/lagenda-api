@@ -46,7 +46,7 @@ public class Appointment extends BaseModel {
     private LocalDateTime start;
     @Column(name = "end_appointment")
     private LocalDateTime end;
-    @ManyToMany(fetch = FetchType.LAZY)
+    @ManyToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JoinTable(
             name = "appointment_services",
             joinColumns = @JoinColumn(name = "appointment_id"),
@@ -65,6 +65,11 @@ public class Appointment extends BaseModel {
     public void removeService(Service service) {
         this.services.remove(service);
         service.getAppointments().remove(this);
+    }
+
+    public void updateServices(List<Service> newServices) {
+        this.services.clear();
+        this.services.addAll(newServices);
     }
 
 }

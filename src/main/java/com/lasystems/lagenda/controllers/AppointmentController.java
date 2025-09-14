@@ -117,6 +117,43 @@ public class AppointmentController {
 
     }
 
+    @PutMapping("/change-appointment")
+    public ResponseEntity<?> changeAppointment(@RequestBody @Valid AppointmentChangeRequest request) {
+        Appointment appointment = appointmentService.findById(request.appointmentId());
+
+//        LocalDate appointmentDate = request.start().toLocalDate();
+        List<Service> serviceList = serviceService.findAllById(request.serviceIds());
+        boolean isAvailable = appointmentService.isAvailable(appointment.getCompany().getId(), appointment.getProvider().getId(),
+                request.start(), request.start().plusHours(1), UUID.fromString(request.specialistId()));
+
+        if (appointment.getStart().equals(request.start())) {
+            isAvailable = true;
+        }
+
+        if (isAvailable) {
+
+            DateTimeFormatter formatoData = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            DateTimeFormatter formatoHora = DateTimeFormatter.ofPattern("HH:mm");
+            String dataFormatada = request.start().format(formatoData);
+            String horaFormatada = request.start().format(formatoHora);
+
+            appointment.setStart(request.start());
+            appointment.setEnd(request.start().plusHours(1));
+            appointment.setNotes(String.format("Nome: %s\nData do Agendamento: %s\nHorário: %s\nServiço(s): %s\nTotal: %s",
+                            appointment.getClient().getName(), dataFormatada, horaFormatada,
+                            serviceList.stream().map(Service::getName).collect(Collectors.joining(",")), ConvertAndFormatUtil.calcularValorTotalFormatado(serviceList)));
+            appointment.updateServices(serviceList);
+            appointmentService.save(appointment);
+            return ResponseEntity.status(HttpStatus.OK).body(appointment);
+
+        } else {
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(Map.of(
+                            "message", "Dia e horário não disponível para agendamento."
+                    ));
+        }
+    }
+
     @GetMapping("/checkAvailability")
     public ResponseEntity<?> checkAvailability(@RequestBody @Valid AppointmentRequest request) {
         String providerId = "";

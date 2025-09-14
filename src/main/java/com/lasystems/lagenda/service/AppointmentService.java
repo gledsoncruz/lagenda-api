@@ -1,15 +1,12 @@
 package com.lasystems.lagenda.service;
 
-import com.lasystems.lagenda.dtos.AppointmentDto;
 import com.lasystems.lagenda.dtos.SchedulingResult;
 import com.lasystems.lagenda.dtos.appointments.AvailableTimesDto;
-import com.lasystems.lagenda.dtos.request.AppointmentChangeStatusRequest;
 import com.lasystems.lagenda.dtos.request.AppointmentRequest;
 import com.lasystems.lagenda.exceptions.EntityNotFoundException;
 import com.lasystems.lagenda.models.Appointment;
 import com.lasystems.lagenda.models.BusinessHour;
 import com.lasystems.lagenda.models.Provider;
-import com.lasystems.lagenda.models.enums.AppointmentStatus;
 import com.lasystems.lagenda.repository.AppointmentRepository;
 import com.lasystems.lagenda.repository.ProviderRepository;
 import com.lasystems.lagenda.repository.ServiceRepository;
@@ -17,7 +14,10 @@ import com.lasystems.lagenda.repository.SpecialtyRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.IntStream;
 
