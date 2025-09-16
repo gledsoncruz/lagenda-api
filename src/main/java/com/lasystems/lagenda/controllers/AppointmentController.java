@@ -10,10 +10,7 @@ import com.lasystems.lagenda.models.Client;
 import com.lasystems.lagenda.models.Provider;
 import com.lasystems.lagenda.models.Service;
 import com.lasystems.lagenda.models.enums.AppointmentStatus;
-import com.lasystems.lagenda.service.AppointmentService;
-import com.lasystems.lagenda.service.ClientService;
-import com.lasystems.lagenda.service.ProviderService;
-import com.lasystems.lagenda.service.ServiceService;
+import com.lasystems.lagenda.service.*;
 import com.lasystems.lagenda.util.ConvertAndFormatUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +32,11 @@ public class AppointmentController {
     private final ProviderService providerService;
     private final ServiceService serviceService;
     private final AppointmentService appointmentService;
+    private final N8nIntegrationService n8nIntegrationService;
+
+    private static final int CREATE_EVENT_GCALENDAR = 1;
+    private static final int UPDATE_EVENT_GCALENDAR = 2;
+    private static final int CANCEL_EVENT_GCALENDAR = 3;
 
     @PostMapping("/create")
     public ResponseEntity<?> createEvent(@RequestBody @Valid AppointmentRequest request) {
@@ -91,7 +93,13 @@ public class AppointmentController {
 
             serviceList.forEach(appointment::addService);
             appointmentService.save(appointment);
-            return ResponseEntity.status(HttpStatus.OK).body(appointment);
+
+            n8nIntegrationService.notifyGoogleCalendarN8N(appointment, CREATE_EVENT_GCALENDAR);
+
+
+            return ResponseEntity.status(HttpStatus.OK).body(Map.of(
+                    "message", "Agendamento feito com sucesso."
+            ));
 
         } else {
             return ResponseEntity.status(HttpStatus.OK)
@@ -109,6 +117,7 @@ public class AppointmentController {
         appointment.setStatus(appointmentStatus);
 
         appointmentService.save(appointment);
+        n8nIntegrationService.notifyGoogleCalendarN8N(appointment, CANCEL_EVENT_GCALENDAR);
 
         return  ResponseEntity.status(HttpStatus.OK)
                 .body(Map.of(
@@ -144,7 +153,13 @@ public class AppointmentController {
                             serviceList.stream().map(Service::getName).collect(Collectors.joining(",")), ConvertAndFormatUtil.calcularValorTotalFormatado(serviceList)));
             appointment.updateServices(serviceList);
             appointmentService.save(appointment);
-            return ResponseEntity.status(HttpStatus.OK).body(appointment);
+
+            n8nIntegrationService.notifyGoogleCalendarN8N(appointment, UPDATE_EVENT_GCALENDAR);
+
+
+            return ResponseEntity.status(HttpStatus.OK).body(Map.of(
+                    "message", "Agendamento alterado com sucesso."
+            ));
 
         } else {
             return ResponseEntity.status(HttpStatus.OK)

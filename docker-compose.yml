@@ -39,6 +39,7 @@ services:
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASS}
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+      WEBHOOK_N8N_GOOGLE_CALENDAR: ${WEBHOOK_N8N_GOOGLE_CALENDAR}
     restart: unless-stopped
 
 #volumes:
