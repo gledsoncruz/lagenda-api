@@ -150,6 +150,20 @@ public class ApiBaseExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, body, new HttpHeaders(), HttpStatus.NOT_FOUND, request);
     }
 
+    @ExceptionHandler(EnableSubscriptionException.class)
+    public ResponseEntity<?> handlerEnableSubscriptionException(EnableSubscriptionException ex, WebRequest request) {
+
+        String title = getMessageResource("title.subscription");
+        String detail = ex.getMessage();
+        String userMessage = ex.getMessage();
+
+        ApiBaseEntityException body = createProblemBuilder(HttpStatus.BAD_REQUEST, title, detail)
+                .userMessage(userMessage)
+                .build();
+
+        return handleExceptionInternal(ex, body, new HttpHeaders(), HttpStatus.NOT_FOUND, request);
+    }
+
 //    @ExceptionHandler(DadosDuplicadosException.class)
 //    public ResponseEntity<?> handlerDadosDuplicados(DadosDuplicadosException ex, WebRequest request) {
 //

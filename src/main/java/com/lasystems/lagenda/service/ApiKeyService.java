@@ -1,6 +1,7 @@
 package com.lasystems.lagenda.service;
 
 import com.lasystems.lagenda.dtos.ApiKeyCreationResult;
+import com.lasystems.lagenda.exceptions.EnableSubscriptionException;
 import com.lasystems.lagenda.exceptions.EntityNotFoundException;
 import com.lasystems.lagenda.models.ApiKey;
 import com.lasystems.lagenda.models.Company;
@@ -56,14 +57,15 @@ public class ApiKeyService {
 
         // Validar assinatura ativa
         Subscription subscription = subscriptionRepository.findActiveByCompanyId(companyId)
-                .orElseThrow(() -> new IllegalStateException("Empresa não possui assinatura ativa"));
+                .orElseThrow(() -> new EnableSubscriptionException("Empresa não possui assinatura ativa"));
 
         // Validar limite de API Keys do plano
         long currentKeyCount = apiKeyRepository.countActiveByCompanyId(companyId);
         int maxKeys = subscription.getPlan().getMaxApiKeys();
 
         if (currentKeyCount >= maxKeys) {
-            throw new IllegalStateException(
+            log.warn("Limite de {} API Keys atingido para o plano {}", maxKeys, subscription.getPlan().getName());
+            throw new EnableSubscriptionException(
                     String.format("Limite de %d API Keys atingido para o plano %s",
                             maxKeys, subscription.getPlan().getName())
             );
