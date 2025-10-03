@@ -1,254 +1,275 @@
 package com.lasystems.lagenda.controllers;
 
-
-import com.lasystems.lagenda.dtos.ProviderMinAppointmentsDto;
+import com.lasystems.lagenda.constants.AppointmentsConstants;
+import com.lasystems.lagenda.dtos.SchedulingResult;
+import com.lasystems.lagenda.dtos.appointments.AvailableTimesDto;
 import com.lasystems.lagenda.dtos.request.AppointmentChangeRequest;
 import com.lasystems.lagenda.dtos.request.AppointmentChangeStatusRequest;
 import com.lasystems.lagenda.dtos.request.AppointmentRequest;
+import com.lasystems.lagenda.dtos.*;
 import com.lasystems.lagenda.models.Appointment;
-import com.lasystems.lagenda.models.Client;
-import com.lasystems.lagenda.models.Provider;
-import com.lasystems.lagenda.models.Service;
 import com.lasystems.lagenda.models.enums.AppointmentStatus;
-import com.lasystems.lagenda.service.*;
-import com.lasystems.lagenda.util.ConvertAndFormatUtil;
+import com.lasystems.lagenda.service.AppointmentService;
+import com.lasystems.lagenda.validators.UUIDValidator;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Controller REST para gerenciamento de agendamentos.
+ * Refatorado para usar DTOs de response tipados e delegar lógica ao Service.
+ */
+@Slf4j
 @RestController
 @RequestMapping("/appointments")
 @RequiredArgsConstructor
 public class AppointmentController {
 
-    private final ClientService clientService;
-    private final ProviderService providerService;
-    private final ServiceService serviceService;
     private final AppointmentService appointmentService;
-    private final N8nIntegrationService n8nIntegrationService;
 
-    private static final int CREATE_EVENT_GCALENDAR = 1;
-    private static final int UPDATE_EVENT_GCALENDAR = 2;
-    private static final int CANCEL_EVENT_GCALENDAR = 3;
-
+    /**
+     * Cria um novo agendamento.
+     *
+     * @param request dados do agendamento
+     * @return resposta com informações do agendamento criado
+     */
     @PostMapping("/create")
-    public ResponseEntity<?> createEvent(@RequestBody @Valid AppointmentRequest request) {
+    public ResponseEntity<AppointmentResponse> createAppointment(
+            @RequestBody @Valid AppointmentRequest request
+    ) {
+        log.info("Requisição de criação de agendamento recebida: clientId={}", request.clientId());
 
-        Provider provider = new Provider();
-        LocalDate appointmentDate = request.start().toLocalDate();
-        List<Service> serviceList = serviceService.findAllById(request.serviceIds());
+        Appointment appointment = appointmentService.createAppointment(request);
 
-        if (request.providerId() != null && !request.providerId().isEmpty()) {
-            provider = providerService.findById(request.providerId());
-        } else {
+        AppointmentResponse response = new AppointmentResponse(
+                AppointmentsConstants.Messages.APPOINTMENT_CREATED,
+                appointment.getId(),
+                appointment.getStart()
+        );
 
-            Optional<ProviderMinAppointmentsDto> bestProvider =
-                    providerService.findProviderWithLeastAppointments(request.companyId(),request.specialistId() , appointmentDate);
-
-            if (bestProvider.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.OK)
-                        .body(Map.of(
-                                "message", "Nenhum prestador disponível com essa especialidade."
-                        ));
-            }
-
-            provider = providerService.findById(bestProvider.get().getId().toString());
-
-        }
-
-        if (appointmentService.isAvailable(UUID.fromString(request.companyId()), provider.getId(),
-                request.start(), request.start().plusHours(1), UUID.fromString(request.specialistId()))) {
-
-            Client client = clientService.findById(request.clientId());
-
-            if (!appointmentService.isAvailableForClient(client.getId(), request.start(), request.start().plusHours(1))) {
-                return ResponseEntity.status(HttpStatus.OK)
-                        .body(Map.of(
-                                "message", "Cliente já possui agendamento nesse mesmo dia e horario escolhido."
-                        ));
-            }
-
-            DateTimeFormatter formatoData = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-            DateTimeFormatter formatoHora = DateTimeFormatter.ofPattern("HH:mm");
-            String dataFormatada = request.start().format(formatoData);
-            String horaFormatada = request.start().format(formatoHora);
-
-            Appointment appointment = Appointment.builder()
-                    .notes(String.format("Nome: %s\nData do Agendamento: %s\nHorário: %s\nServiço(s): %s\nTotal: %s",
-                            client.getName(), dataFormatada, horaFormatada,
-                            serviceList.stream().map(Service::getName).collect(Collectors.joining(",")), ConvertAndFormatUtil.calcularValorTotalFormatado(serviceList)))
-                    .company(client.getCompany())
-                    .client(client)
-                    .start(request.start())
-                    .end(request.start().plusHours(1))
-                    .provider(provider)
-                    .build();
-
-            serviceList.forEach(appointment::addService);
-            appointmentService.save(appointment);
-
-            n8nIntegrationService.notifyGoogleCalendarN8N(appointment, CREATE_EVENT_GCALENDAR);
-
-
-            return ResponseEntity.status(HttpStatus.OK).body(Map.of(
-                    "message", "Agendamento feito com sucesso."
-            ));
-
-        } else {
-            return ResponseEntity.status(HttpStatus.OK)
-                        .body(Map.of(
-                                "message", "Dia e horário não disponível para agendamento."
-                        ));
-        }
-
+        return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/change-status")
-    public ResponseEntity<?> changeStatus(@RequestBody AppointmentChangeStatusRequest request) {
-        Appointment appointment = appointmentService.findById(request.appointmentId());
-        AppointmentStatus appointmentStatus = AppointmentStatus.valueOf(request.appointmentStatus());
-        appointment.setStatus(appointmentStatus);
-
-        appointmentService.save(appointment);
-        n8nIntegrationService.notifyGoogleCalendarN8N(appointment, CANCEL_EVENT_GCALENDAR);
-
-        return  ResponseEntity.status(HttpStatus.OK)
-                .body(Map.of(
-                        "message", "Alteração de status feito com sucesso."
-                ));
-
-    }
-
+    /**
+     * Altera um agendamento existente.
+     *
+     * @param request dados da alteração
+     * @return resposta com informações do agendamento alterado
+     */
     @PutMapping("/change-appointment")
-    public ResponseEntity<?> changeAppointment(@RequestBody @Valid AppointmentChangeRequest request) {
-        Appointment appointment = appointmentService.findById(request.appointmentId());
+    public ResponseEntity<AppointmentResponse> changeAppointment(
+            @RequestBody @Valid AppointmentChangeRequest request
+    ) {
+        log.info("Requisição de alteração de agendamento: id={}", request.appointmentId());
 
-//        LocalDate appointmentDate = request.start().toLocalDate();
-        List<Service> serviceList = serviceService.findAllById(request.serviceIds());
-        boolean isAvailable = appointmentService.isAvailable(appointment.getCompany().getId(), appointment.getProvider().getId(),
-                request.start(), request.start().plusHours(1), UUID.fromString(request.specialistId()));
+        Appointment appointment = appointmentService.changeAppointment(request);
 
-        if (appointment.getStart().equals(request.start())) {
-            isAvailable = true;
-        }
+        AppointmentResponse response = new AppointmentResponse(
+                AppointmentsConstants.Messages.APPOINTMENT_UPDATED,
+                appointment.getId(),
+                appointment.getStart()
+        );
 
-        if (isAvailable) {
-
-            DateTimeFormatter formatoData = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-            DateTimeFormatter formatoHora = DateTimeFormatter.ofPattern("HH:mm");
-            String dataFormatada = request.start().format(formatoData);
-            String horaFormatada = request.start().format(formatoHora);
-
-            appointment.setStart(request.start());
-            appointment.setEnd(request.start().plusHours(1));
-            appointment.setNotes(String.format("Nome: %s\nData do Agendamento: %s\nHorário: %s\nServiço(s): %s\nTotal: %s",
-                            appointment.getClient().getName(), dataFormatada, horaFormatada,
-                            serviceList.stream().map(Service::getName).collect(Collectors.joining(",")), ConvertAndFormatUtil.calcularValorTotalFormatado(serviceList)));
-            appointment.updateServices(serviceList);
-            appointmentService.save(appointment);
-
-            n8nIntegrationService.notifyGoogleCalendarN8N(appointment, UPDATE_EVENT_GCALENDAR);
-
-
-            return ResponseEntity.status(HttpStatus.OK).body(Map.of(
-                    "message", "Agendamento alterado com sucesso."
-            ));
-
-        } else {
-            return ResponseEntity.status(HttpStatus.OK)
-                    .body(Map.of(
-                            "message", "Dia e horário não disponível para agendamento."
-                    ));
-        }
+        return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/checkAvailability")
-    public ResponseEntity<?> checkAvailability(@RequestBody @Valid AppointmentRequest request) {
-        String providerId = "";
-        if (request.providerId() == null) {
-            Optional<ProviderMinAppointmentsDto> provider = providerService.findProviderWithLeastAppointments(
-                    request.companyId(), request.specialistId(), request.start().toLocalDate());
-            providerId = provider.get().getId().toString();
-        } else {
-            providerId = request.providerId();
-        }
+    /**
+     * Altera o status de um agendamento.
+     *
+     * @param request dados da alteração de status
+     * @return resposta confirmando alteração
+     */
+    @PutMapping("/change-status")
+    public ResponseEntity<StatusChangeResponse> changeStatus(
+            @RequestBody @Valid AppointmentChangeStatusRequest request
+    ) {
+        log.info("Requisição de mudança de status: id={}, status={}",
+                request.appointmentId(), request.appointmentStatus());
 
-        if (appointmentService.isAvailable(UUID.fromString(request.companyId()), UUID.fromString(providerId),
-                request.start(), request.start().plusHours(1), UUID.fromString(request.specialistId()))) {
-            return ResponseEntity.status(HttpStatus.OK)
-                            .body(Map.of(
-                                    "message", "Dia e horário disponível para agendamento.",
-                                    "available", true
-                            ));
+        AppointmentStatus newStatus = AppointmentStatus.valueOf(request.appointmentStatus());
+        Appointment appointment = appointmentService.changeStatus(
+                request.appointmentId(),
+                newStatus
+        );
 
-        }
-        return ResponseEntity.status(HttpStatus.OK)
-                .body(Map.of(
-                        "message", "Dia e horário não disponível para agendamento.",
-                        "available", false
-                ));
+        StatusChangeResponse response = new StatusChangeResponse(
+                AppointmentsConstants.Messages.STATUS_CHANGED,
+                appointment.getId(),
+                appointment.getStatus().name()
+        );
+
+        return ResponseEntity.ok(response);
     }
 
+    /**
+     * Verifica disponibilidade de um horário.
+     *
+     * @param request dados para verificação
+     * @return resposta indicando se está disponível
+     */
+    @GetMapping("/check-availability")
+    public ResponseEntity<AvailabilityResponse> checkAvailability(
+            @RequestBody @Valid AppointmentRequest request
+    ) {
+        log.debug("Verificando disponibilidade: {}", request.start());
+
+        UUID companyId = UUIDValidator.parseOrThrow(request.companyId(), "companyId");
+        UUID specialtyId = UUIDValidator.parseOrThrow(request.specialistId(), "specialistId");
+        UUID providerId = request.providerId() != null
+                ? UUIDValidator.parseOrThrow(request.providerId(), "providerId")
+                : null;
+
+        boolean available = appointmentService.isAvailable(
+                companyId,
+                providerId,
+                request.start(),
+                request.start().plusHours(1),
+                specialtyId
+        );
+
+        String message = available
+                ? "Horário disponível para agendamento"
+                : AppointmentsConstants.Messages.SLOT_NOT_AVAILABLE;
+
+        AvailabilityResponse response = new AvailabilityResponse(
+                message,
+                available,
+                request.start()
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Encontra o melhor slot disponível.
+     *
+     * @param request critérios de busca
+     * @return melhor slot encontrado ou 404
+     */
     @GetMapping("/find-best-slot")
-    public ResponseEntity<?> findBestSlot(@RequestBody @Valid AppointmentRequest request) {
+    public ResponseEntity<BestSlotResponse> findBestSlot(
+            @RequestBody @Valid AppointmentRequest request
+    ) {
+        log.info("Buscando melhor slot disponível");
+
         return appointmentService.findBestSlot(request)
-                .map(slot -> ResponseEntity.ok(Map.of(
-                        "providerId", slot.providerId(),
-                        "startTime", slot.startTime()
-                )))
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    @GetMapping("/finalize-missed-appointments")
-    public ResponseEntity<?> finalizeMissedAppointments() {
-        List<Appointment> appointments = appointmentService.pastAppointmentsScheduled();
-        if (appointments != null && !appointments.isEmpty()) {
-            List<UUID> appointmentIds = appointments.stream()
-                    .map(Appointment::getId)
-                    .toList();
-            appointmentService.cancelAppointmentsBatch(appointmentIds);
-
-            return ResponseEntity.status(HttpStatus.OK)
-                    .body(Map.of(
-                            "message", String.format("Foram atualizados %s agendamentos passados.", appointments.size()),
-                            "idsAtualizados", appointments.stream().map(a -> a.getId().toString()).collect(Collectors.joining(", "))
-                    ));
-
-        } else {
-            return ResponseEntity.status(HttpStatus.OK)
-                    .body(Map.of(
-                            "message", "Não há agendamentos para cancelar",
-                            "idsAtualizados", ""
-                    ));
-        }
-    }
-
-    @GetMapping("/next")
-    public ResponseEntity<?> getNextAvailableTimes(@RequestBody AppointmentRequest request) {
-        return appointmentService.findNextAvailableTimes(UUID.fromString(request.companyId()), request.serviceIds().stream().map(str -> {
-                    try {
-                        return UUID.fromString(str);
-                    } catch (IllegalArgumentException e) {
-                        return null;
-                    }
+                .map(slot -> {
+                    BestSlotResponse response = new BestSlotResponse(
+                            slot.providerId(),
+                            "Provider Name", // TODO: Buscar nome do provider
+                            slot.startTime()
+                    );
+                    return ResponseEntity.ok(response);
                 })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList()), request.start().toLocalDate())
-                .map(dto -> ResponseEntity.ok(Map.of(
-                        "date", dto.date(),
-                        "availableTimes", dto.availableTimes().stream()
-                                .map(t -> t.format(DateTimeFormatter.ofPattern("HH:mm")))
-                                .toList()
-                )))
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    /**
+     * Busca próximos horários disponíveis.
+     *
+     * @param request critérios de busca
+     * @return próximos horários disponíveis ou 404
+     */
+    @GetMapping("/next-available")
+    public ResponseEntity<NextAvailableTimesResponse> getNextAvailableTimes(
+            @RequestBody @Valid AppointmentRequest request
+    ) {
+        log.info("Buscando próximos horários disponíveis");
+        if (request.start().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.notFound().build();
+        }
 
+        UUID companyId = UUIDValidator.parseOrThrow(request.companyId(), "companyId");
+        List<UUID> serviceIds = UUIDValidator.parseList(request.serviceIds(), "serviceIds");
+
+        return appointmentService.findNextAvailableTimes(
+                        companyId,
+                        serviceIds,
+                        request.start().toLocalDate()
+                )
+                .map(dto -> {
+                    List<String> formattedTimes = dto.availableTimes().stream()
+                            .map(time -> time.format(DateTimeFormatter.ofPattern("HH:mm")))
+                            .toList();
+
+                    NextAvailableTimesResponse response = new NextAvailableTimesResponse(
+                            dto.date().toString(),
+                            formattedTimes
+                    );
+
+                    return ResponseEntity.ok(response);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Finaliza agendamentos passados que ainda estão como SCHEDULED.
+     *
+     * @return resposta com total de agendamentos atualizados
+     */
+    @PostMapping("/finalize-missed")
+    public ResponseEntity<FinalizeMissedAppointmentsResponse> finalizeMissedAppointments() {
+        log.info("Finalizando agendamentos perdidos");
+
+        List<Appointment> finalized = appointmentService.finalizeMissedAppointments();
+
+        FinalizeMissedAppointmentsResponse response = new FinalizeMissedAppointmentsResponse(
+                String.format("Total de %d agendamentos finalizados", finalized.size()),
+                finalized.size(),
+                finalized.stream().map(Appointment::getId).toList()
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Busca detalhes de um agendamento por ID.
+     *
+     * @param id ID do agendamento
+     * @return detalhes do agendamento
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<AppointmentDetailResponse> getAppointmentById(
+            @PathVariable String id
+    ) {
+        log.debug("Buscando agendamento por ID: {}", id);
+
+        Appointment appointment = appointmentService.findById(id);
+
+        AppointmentDetailResponse response = new AppointmentDetailResponse(
+                appointment.getId(),
+                new ClientSummary(
+                        appointment.getClient().getId(),
+                        appointment.getClient().getName(),
+                        appointment.getClient().getPhone()
+                ),
+                new ProviderSummary(
+                        appointment.getProvider().getId(),
+                        appointment.getProvider().getName(),
+                        appointment.getProvider().getCalendarId()
+                ),
+                appointment.getStart(),
+                appointment.getEnd(),
+                appointment.getStatus().name(),
+                appointment.getServices().stream()
+                        .map(s -> new ServiceSummary(
+                                s.getId(),
+                                s.getName(),
+                                s.getPrice(),
+                                s.getDurationMinutes()
+                        ))
+                        .collect(Collectors.toList()),
+                appointment.getNotes()
+        );
+
+        return ResponseEntity.ok(response);
+    }
 }

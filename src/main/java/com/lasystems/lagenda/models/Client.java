@@ -34,7 +34,7 @@ public class Client extends BaseModel {
     @Column(name = "phone", columnDefinition = "text")
     private String phone;
     @OneToMany(mappedBy = "client")
-    @SQLRestriction("end_appointment >= current_timestamp")
+    @SQLRestriction("end_appointment >= (current_timestamp AT TIME ZONE 'UTC')::date")
     private List<Appointment> appointments = new ArrayList<>();
     @Column(columnDefinition = "jsonb", name = "conversation_history")
     private String conversationHistory;

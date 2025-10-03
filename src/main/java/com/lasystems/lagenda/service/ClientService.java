@@ -8,6 +8,7 @@ import com.lasystems.lagenda.dtos.ClientDto;
 import com.lasystems.lagenda.exceptions.EntityNotFoundException;
 import com.lasystems.lagenda.exceptions.UUIDIllegalArgumentException;
 import com.lasystems.lagenda.models.Client;
+import com.lasystems.lagenda.models.enums.AppointmentStatus;
 import com.lasystems.lagenda.repository.ClientRepository;
 import com.lasystems.lagenda.repository.filter.ClientFilter;
 import com.lasystems.lagenda.repository.specs.ClientSpecifications;
@@ -51,12 +52,27 @@ public class ClientService {
 
                     // Adiciona appointments
                     ArrayNode appointmentsNode = node.putArray("appointments");
-                    client.getAppointments().forEach(a -> {
+
+                    client.getAppointments().stream().filter(f ->
+                            !f.getStatus().equals(AppointmentStatus.CANCELLED) && !f.getStatus().equals(AppointmentStatus.COMPLETED)).forEach(a -> {
                         ObjectNode appNode = appointmentsNode.addObject();
                         appNode.put("id", a.getId().toString());
                         appNode.put("start", a.getStart().toString());
                         appNode.put("end", a.getEnd().toString());
                         appNode.put("status", a.getStatus().name());
+
+
+                        ArrayNode serviceArrayNode = appNode.putArray("services");
+
+
+                        a.getServices().forEach(s -> {
+                            ObjectNode serviceNode = objectMapper.createObjectNode();
+                            serviceNode.put("id", s.getId().toString());
+                            serviceNode.put("name", s.getName());
+                            serviceNode.put("price", s.getPrice().toString());
+                            serviceArrayNode.add(serviceNode);
+                        });
+
                     });
 
                     // Adiciona conversationHistory (já é JSON)

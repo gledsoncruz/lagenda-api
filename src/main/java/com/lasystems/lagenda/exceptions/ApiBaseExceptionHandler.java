@@ -136,6 +136,20 @@ public class ApiBaseExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, body, new HttpHeaders(), HttpStatus.NOT_FOUND, request);
     }
 
+    @ExceptionHandler(SlotNotAvailableException.class)
+    public ResponseEntity<?> handlerSlotNotAvailableException(SlotNotAvailableException ex, WebRequest request) {
+
+        String title = getMessageResource("title.slotNotAvailable");
+        String detail = ex.getMessage(); //getMessageResource("title.slotNotAvailable");
+        String userMessage = ex.getMessage();//getMessageResource("title.slotNotAvailable");
+
+        ApiBaseEntityException body = createProblemBuilder(HttpStatus.BAD_REQUEST, title, detail)
+                .userMessage(userMessage)
+                .build();
+
+        return handleExceptionInternal(ex, body, new HttpHeaders(), HttpStatus.NOT_FOUND, request);
+    }
+
 //    @ExceptionHandler(DadosDuplicadosException.class)
 //    public ResponseEntity<?> handlerDadosDuplicados(DadosDuplicadosException ex, WebRequest request) {
 //
