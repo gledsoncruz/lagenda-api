@@ -26,10 +26,10 @@ public class BootstrapController {
 
     private final ApiKeyService apiKeyService;
 
-    @Value("${bootstrap.secret:CHANGE_ME_IN_PRODUCTION}")
+    @Value("${bootstrap.secret}")
     private String bootstrapSecret;
 
-    @Value("${bootstrap.enabled:true}")
+    @Value("${bootstrap.enabled}")
     private boolean bootstrapEnabled;
 
     /**
