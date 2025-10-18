@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.*;
 
 
@@ -42,9 +44,9 @@ public class Appointment extends BaseModel {
     private String calendarId;
     @Column(name = "notes", columnDefinition = "text")
     private String notes;
-    @Column(name = "start_appointment")
+    @Column(name = "start_appointment", nullable = false)
     private LocalDateTime start;
-    @Column(name = "end_appointment")
+    @Column(name = "end_appointment", nullable = false)
     private LocalDateTime end;
     @ManyToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JoinTable(
@@ -70,6 +72,23 @@ public class Appointment extends BaseModel {
     public void updateServices(List<Service> newServices) {
         this.services.clear();
         this.services.addAll(newServices);
+    }
+
+    /**
+     * Método helper para obter start com timezone explícito.
+     * Útil para logs e debugging.
+     */
+    @Transient
+    public ZonedDateTime getStartWithZone() {
+        return start.atZone(ZoneId.of("America/Sao_Paulo"));
+    }
+
+    /**
+     * Método helper para obter end com timezone explícito.
+     */
+    @Transient
+    public ZonedDateTime getEndWithZone() {
+        return end.atZone(ZoneId.of("America/Sao_Paulo"));
     }
 
 }
