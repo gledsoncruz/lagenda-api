@@ -48,6 +48,7 @@ public class Appointment extends BaseModel {
     private LocalDateTime start;
     @Column(name = "end_appointment", nullable = false)
     private LocalDateTime end;
+    //TODO: Criar model de relacionamento
     @ManyToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JoinTable(
             name = "appointment_services",

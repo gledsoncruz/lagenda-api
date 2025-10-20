@@ -60,11 +60,12 @@ public class AppointmentService {
         // 2. Buscar serviços e cliente
         List<com.lasystems.lagenda.models.Service> services =
                 serviceService.findAllById(request.serviceIds());
+        int durationMinutes = serviceRepository.getTotalDuration(UUIDValidator.parseList(request.serviceIds(), "serviceIds"));
         Client client = clientService.findById(request.clientId());
 
         // 3. Calcular período do agendamento
         LocalDateTime start = request.start();
-        LocalDateTime end = start.plusHours(1);
+        LocalDateTime end = start.plusMinutes(durationMinutes);
         UUID specialtyId = UUIDValidator.parseOrThrow(request.specialistId(), "specialistId");
 
         // 4. Validar disponibilidade
@@ -99,9 +100,10 @@ public class AppointmentService {
         Appointment appointment = findById(request.appointmentId());
         List<com.lasystems.lagenda.models.Service> services =
                 serviceService.findAllById(request.serviceIds());
+        int durationMinutes = serviceRepository.getTotalDuration(UUIDValidator.parseList(request.serviceIds(), "serviceIds"));
 
         LocalDateTime newStart = request.start();
-        LocalDateTime newEnd = newStart.plusHours(1);
+        LocalDateTime newEnd = newStart.plusMinutes(durationMinutes);
         UUID specialtyId = UUIDValidator.parseOrThrow(request.specialistId(), "specialistId");
 
         // Validar disponibilidade apenas se horário mudou
@@ -201,7 +203,7 @@ public class AppointmentService {
     public Optional<SchedulingResult> findBestSlot(AppointmentRequest request) {
         log.debug("Buscando melhor slot para request: {}", request);
 
-        UUID companyId = UUIDValidator.parseOrThrow(request.companyId(), "companyId");
+//        UUID companyId = UUIDValidator.parseOrThrow(request.companyId(), "companyId");
         UUID specialtyId = getOrInferSpecialtyId(request);
 
         Integer totalDuration = serviceRepository.getTotalDuration(
