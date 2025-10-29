@@ -4,6 +4,7 @@ import com.lasystems.lagenda.models.enums.AppointmentStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -48,31 +49,32 @@ public class Appointment extends BaseModel {
     private LocalDateTime start;
     @Column(name = "end_appointment", nullable = false)
     private LocalDateTime end;
-    //TODO: Criar model de relacionamento
-    @ManyToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "appointment_services",
-            joinColumns = @JoinColumn(name = "appointment_id"),
-            inverseJoinColumns = @JoinColumn(name = "service_id"),
-            foreignKey = @ForeignKey(ConstraintMode.CONSTRAINT),
-            inverseForeignKey = @ForeignKey(ConstraintMode.CONSTRAINT)
-    )
+
+    @OneToMany(mappedBy = "appointment", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<Service> services = new ArrayList<>();
+    private Set<AppointmentService> appointmentServices = new HashSet<>();
 
     public void addService(Service service) {
-        this.services.add(service);
-        service.getAppointments().add(this);
+        var linkId = new AppointmentServiceId(this.id, service.getId(), this.company.getId());
+        var link = AppointmentService.builder()
+                .id(linkId)
+                .appointment(this)
+                .service(service)
+                .priceService(service.getPrice())
+                .build();
+        appointmentServices.add(link);
+        service.getAppointmentServices().add(link);
     }
 
     public void removeService(Service service) {
-        this.services.remove(service);
-        service.getAppointments().remove(this);
+        var key = new AppointmentServiceId(this.id, service.getId(), this.company.getId());
+        appointmentServices.removeIf(l -> l.getId().equals(key));
+        service.getAppointmentServices().removeIf(l -> l.getId().equals(key));
     }
 
-    public void updateServices(List<Service> newServices) {
-        this.services.clear();
-        this.services.addAll(newServices);
+    public void updateServices(Set<AppointmentService> newServices) {
+        this.appointmentServices.clear();
+        this.appointmentServices.addAll(newServices);
     }
 
     /**

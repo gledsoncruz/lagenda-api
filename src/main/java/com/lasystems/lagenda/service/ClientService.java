@@ -65,11 +65,11 @@ public class ClientService {
                         ArrayNode serviceArrayNode = appNode.putArray("services");
 
 
-                        a.getServices().forEach(s -> {
+                        a.getAppointmentServices().forEach(s -> {
                             ObjectNode serviceNode = objectMapper.createObjectNode();
                             serviceNode.put("id", s.getId().toString());
-                            serviceNode.put("name", s.getName());
-                            serviceNode.put("price", s.getPrice().toString());
+                            serviceNode.put("name", s.getService().getName());
+                            serviceNode.put("price", s.getService().getPrice().toString());
                             serviceArrayNode.add(serviceNode);
                         });
 

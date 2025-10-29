@@ -2,17 +2,19 @@ package com.lasystems.lagenda.models;
 
 
 import jakarta.persistence.*;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
+import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
+@Builder
 @Getter
 @Setter
 @Table(name = "services")
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper=false)
 public class Service extends BaseModel {
@@ -24,8 +26,8 @@ public class Service extends BaseModel {
     private UUID id;
     @Column(name = "name", nullable = false)
     private String name;
-    @Column(name = "price")
-    private Double price;
+    @Column(name = "price", precision = 10, scale = 2)
+    private BigDecimal price;
     @ManyToOne(optional = false)
     @JoinColumn(nullable = false)
     private Company company;
@@ -33,8 +35,11 @@ public class Service extends BaseModel {
     private Integer durationMinutes;
     @Column(name = "requires_address")
     private Boolean requiresAddress;
-    @ManyToMany(mappedBy = "services", fetch = FetchType.LAZY)
-    private Set<Appointment> appointments = new HashSet<>();
+    // Service.java (apenas trechos relevantes)
+    @OneToMany(mappedBy = "service", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private java.util.Set<AppointmentService> appointmentServices = new java.util.HashSet<>();
+
 
     @ManyToMany
     @JoinTable(

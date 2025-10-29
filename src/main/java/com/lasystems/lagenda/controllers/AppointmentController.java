@@ -259,12 +259,12 @@ public class AppointmentController {
                 appointment.getStart(),
                 appointment.getEnd(),
                 appointment.getStatus().name(),
-                appointment.getServices().stream()
+                appointment.getAppointmentServices().stream()
                         .map(s -> new ServiceSummary(
-                                s.getId(),
-                                s.getName(),
-                                s.getPrice(),
-                                s.getDurationMinutes()
+                                s.getService().getId(),
+                                s.getService().getName(),
+                                s.getService().getPrice(),
+                                s.getService().getDurationMinutes()
                         ))
                         .collect(Collectors.toList()),
                 appointment.getNotes()

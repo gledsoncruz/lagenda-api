@@ -23,7 +23,6 @@ public class ConvertAndFormatUtil {
         BigDecimal total = services.stream()
                 .map(Service::getPrice)                    // Obtém o Double
                 .filter(price -> price != null)            // Evita NPE
-                .map(BigDecimal::valueOf)                  // Converte Double -> BigDecimal
                 .reduce(BigDecimal.ZERO, BigDecimal::add); // Soma tudo
 
         // Formata como R$

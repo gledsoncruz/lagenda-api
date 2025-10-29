@@ -98,8 +98,8 @@ public class AppointmentService {
         log.info("Alterando agendamento {}", request.appointmentId());
 
         Appointment appointment = findById(request.appointmentId());
-        List<com.lasystems.lagenda.models.Service> services =
-                serviceService.findAllById(request.serviceIds());
+
+        Set<com.lasystems.lagenda.models.AppointmentService> appointmentServices = appointment.getAppointmentServices();  //serviceService.findAllById(request.serviceIds());
         int durationMinutes = serviceRepository.getTotalDuration(UUIDValidator.parseList(request.serviceIds(), "serviceIds"));
 
         LocalDateTime newStart = request.start();
@@ -118,7 +118,7 @@ public class AppointmentService {
         }
 
         // Atualizar dados
-        updateAppointmentDetails(appointment, services, newStart, newEnd);
+        updateAppointmentDetails(appointment, appointmentServices, newStart, newEnd);
         Appointment updated = save(appointment);
 
         // Notificar atualização
@@ -295,7 +295,7 @@ public class AppointmentService {
      */
     private void updateAppointmentDetails(
             Appointment appointment,
-            List<com.lasystems.lagenda.models.Service> services,
+            Set<com.lasystems.lagenda.models.AppointmentService> appointmentServices,
             LocalDateTime start,
             LocalDateTime end
     ) {
@@ -307,15 +307,15 @@ public class AppointmentService {
                 appointment.getClient().getName(),
                 start.format(dateFormatter),
                 start.format(timeFormatter),
-                services.stream().map(com.lasystems.lagenda.models.Service::getName)
+                appointmentServices.stream().map(a -> a.getService().getName())
                         .collect(Collectors.joining(", ")),
-                ConvertAndFormatUtil.calcularValorTotalFormatado(services)
+                ConvertAndFormatUtil.calcularValorTotalFormatado(appointmentServices.stream().map(com.lasystems.lagenda.models.AppointmentService::getService).toList())
         );
 
         appointment.setStart(start);
         appointment.setEnd(end);
         appointment.setNotes(notes);
-        appointment.updateServices(services);
+        appointment.updateServices(appointmentServices);
     }
 
     /**
