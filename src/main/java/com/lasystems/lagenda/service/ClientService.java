@@ -42,6 +42,7 @@ public class ClientService {
                     node.put("name", client.getName());
                     node.put("email", client.getEmail());
                     node.put("phone", client.getPhone());
+                    node.put("attendantHuman", client.getAttendantHuman());
 
                     // Adiciona company
 //                    ObjectNode companyNode = objectMapper.createObjectNode();

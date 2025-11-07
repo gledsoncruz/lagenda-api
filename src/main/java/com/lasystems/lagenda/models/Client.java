@@ -38,5 +38,7 @@ public class Client extends BaseModel {
     private List<Appointment> appointments = new ArrayList<>();
     @Column(columnDefinition = "jsonb", name = "conversation_history")
     private String conversationHistory;
+    @Column(name = "attendant_human")
+    private Boolean attendantHuman;
 
 }
